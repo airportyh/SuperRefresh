@@ -1,0 +1,3 @@
+echo 'javascript:(function(){' > marklet.js
+yui-compressor js/super_refresh.js >> marklet.js
+echo 'init(String(window.location));})()' >> marklet.js
