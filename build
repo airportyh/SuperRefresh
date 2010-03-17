@@ -1,3 +1,6 @@
 echo 'javascript:(function(){' > marklet.js
+yui-compressor js/sha1.js >> marklet.js
+echo -e "\n" >> marklet.js
 yui-compressor js/super_refresh.js >> marklet.js
 echo 'init(String(window.location));})()' >> marklet.js
+cat marklet.js | pbcopy

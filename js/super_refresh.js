@@ -1,6 +1,9 @@
-var mainURL, frame, frameDocument, scriptTags, cssLinkTags
+var mainURL, urlBar, frame, scriptTags, cssLinkTags
 var frameLoadTime, intervalID
 var lastFetchedTimes = {}
+var contentHashes = {}
+var compareMode = 'Content'
+var scrollOffset
 
 if (!window.console)
     window.console = {log: function(){}}
@@ -38,16 +41,24 @@ function stripQS(url){
 function ifModified(url, onModified){
     //console.log('isModified')
     url = stripQS(url)
-    ajax(addRandom(url), 'GET', function(){
+    var randUrl = addRandom(url)
+    ajax(randUrl, 'GET', function(){
         if (this.readyState == 4){
             //console.log('xhr finished.')
-            var lastModified = new Date(this.getResponseHeader('Last-Modified'))
-            var lastFetched = lastFetchedTimes[url] || frameLoadTime
-            console.log('lastModified: ' + String(lastModified) + ', ' + lastModified)
-            if (String(lastModified.getTime()) == "NaN" || 
-                lastModified.getTime() > lastFetched.getTime()){
-                onModified(addTS(url, lastModified))
-                lastFetchedTimes[url] = lastModified
+            if (compareMode == 'LastModified'){
+                var lastModified = new Date(this.getResponseHeader('Last-Modified'))
+                var lastFetched = lastFetchedTimes[url] || frameLoadTime
+                //console.log('lastModified: ' + String(lastModified) + ', ' + lastModified)
+                if (lastModified.getTime() > lastFetched.getTime()){
+                    onModified(addTS(url, lastModified))
+                    lastFetchedTimes[url] = lastModified
+                }
+            }else{
+                var sha1 = sha1Hash(this.responseText)
+                if (contentHashes[url] != sha1){
+                    onModified(randUrl)
+                    contentHashes[url] = sha1
+                }
             }
         }
     })
@@ -67,10 +78,24 @@ function refresh(){
     })
 }
 
-function onFrameLoaded(){
+function setFrameHeight(){
+    frame.style.height = (window.innerHeight - frame.offsetTop) + 'px'
+}
+function onWindowResize(){
+    setFrameHeight()
+}
+function setTitle(){
+    document.title = 'SuperRefresh - ' + frame.contentDocument.title
+}
+
+function onFrameLoaded(e){
+    mainURL = frame.contentWindow.location.toString()
+    urlBar.innerHTML = stripQS(mainURL)
     frameLoadTime = new Date()
+    setTitle()
     var doc = frame.contentDocument
-    frameDocument = frame.contentDocument
+    var frameWindow = frame.contentWindow
+    var frameDocument = frame.contentDocument
     /*
     scriptTags = toArray(frameDocument.getElementsByTagName('script'))
         .filter(function(tag){
@@ -81,8 +106,15 @@ function onFrameLoaded(){
     cssLinkTags = toArray(frameDocument.getElementsByTagName('link'))
         .filter(function(tag){
             return tag.rel == 'stylesheet'
-        });
-        
+        })
+    
+    
+    if (scrollOffset)
+        frameWindow.scrollTo(scrollOffset.x, scrollOffset.y)
+    
+    frameWindow.addEventListener('scroll', function(){
+        scrollOffset = {x: frameWindow.pageXOffset, y: frameWindow.pageYOffset}
+    }, false)
     //console.log(cssLinkTags.map(function(tag){return tag.href}).join("\n"))
     if (!intervalID)
         intervalID = setInterval(refresh, 1000)
@@ -94,6 +126,8 @@ function removeChildren(elm){
     })
 }
 
+
+
 function blankOutPage(){
     var head = document.getElementsByTagName('head')[0]
     removeChildren(head)
@@ -102,39 +136,51 @@ function blankOutPage(){
 
 function buildPage(){
     var css = '\
-    #frame{\
-    	position: fixed;\
-    	top: 2.8em;\
-    	width: 100%;\
-    	height: 100%;\
-    	border: none 0px;\
-    	border-top: 1px solid #888;\
-    }\
-    body{\
-    	font-family: "Helvetica", "Arial";\
-    	margin: 0;\
-    	padding: 0;\
-    	overflow: hidden;\
-    }\
-    h1{\
-        margin: 0; padding: 0;\
-    	color: #8cc21f;\
-    	margin-left: 0.2em;\
-    }\
-    h1 span{\
-    	color: #4ca1cc;\
-    }'
+#frame{\
+	position: fixed;\
+	top: 24px;\
+	width: 100%;\
+	border: none 0px;\
+	border-top: 1px solid #888;\
+}\
+body{\
+	font-family: "Helvetica", "Arial";\
+	margin: 0;\
+	padding: 0;\
+	overflow: hidden;\
+}\
+h1{\
+    font-size: 20px;\
+    margin: 0; padding: 0;\
+	color: #8cc21f;\
+	margin-left: 0.2em;\
+}\
+h1 span{\
+	color: #4ca1cc;\
+}\
+#urlBar{\
+    position: absolute;\
+    right: 5px;\
+    top: 0px;\
+    color: #888;\
+    padding-top: 8px;\
+    font-size: 12px\
+}'
 	var style = document.createElement('style')
 	style.type = 'text/css'
 	style.appendChild(document.createTextNode(css))
 	var head = document.getElementsByTagName('head')[0]
 	var title = document.createElement('title')
-	title.appendChild(document.createTextNode('superrefresh'))
+	title.appendChild(document.createTextNode('SuperRefresh'))
 	head.appendChild(title)
 	head.appendChild(style)
-    
     document.body.innerHTML = '<h1><span>super</span>refresh</h1>\
-        <iframe id="frame"></iframe>'
+<div id="urlBar"></div>\
+<iframe id="frame"></iframe>'
+    frame = document.getElementById('frame')
+    urlBar = document.getElementById('urlBar')
+    setFrameHeight()
+    window.addEventListener('resize', onWindowResize, false)
 }
 
 function init(url){
