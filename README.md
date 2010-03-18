@@ -13,8 +13,8 @@ How to build it?
 ----------------
 1. Install python if you don't have it.
 2. Get [yui-compressor] [1] and put it in your PATH.
-3. run the build script
-4. find the output in marklet.js
+3. run the build script and the output will be printed to the console. You may
+redirect it to a file or pbcopy on Mac to put it on the clipboard.
 
 Browser Support
 ---------------
