@@ -68,14 +68,21 @@ function refresh(){
     console.log('refresh()')
     ifModified(mainURL, function(url){
         frame.src = url
-    });
+    })
     //console.log('cssLinkTags: ' + cssLinkTags.length)
     cssLinkTags.forEach(function(link){
         var url = link.href
         ifModified(url, function(url){
             //console.log('Updated ' + url)
             link.href = url
-        });
+        })
+    })
+    
+    scriptTags.forEach(function(script){
+        var url = script.src
+        ifModified(url, function(url){
+            frame.contentDocument.location.reload()
+        })
     })
 }
 
@@ -98,12 +105,12 @@ function onFrameLoaded(e){
     var doc = frame.contentDocument
     var frameWindow = frame.contentWindow
     var frameDocument = frame.contentDocument
-    /*
+    
     scriptTags = toArray(frameDocument.getElementsByTagName('script'))
         .filter(function(tag){
             return Boolean(tag.src)
         });
-    */
+    
     //console.log(scriptTags.map(function(tag){return tag.src }).join("\n"))
     cssLinkTags = toArray(frameDocument.getElementsByTagName('link'))
         .filter(function(tag){
