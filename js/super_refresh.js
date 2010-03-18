@@ -65,6 +65,7 @@ function ifModified(url, onModified){
 }
 
 function refresh(){
+    console.log('refresh()')
     ifModified(mainURL, function(url){
         frame.src = url
     });
@@ -89,6 +90,7 @@ function setTitle(){
 }
 
 function onFrameLoaded(e){
+    console.log('onFrameLoaded')
     mainURL = frame.contentWindow.location.toString()
     urlBar.innerHTML = stripQS(mainURL)
     frameLoadTime = new Date()
@@ -116,6 +118,7 @@ function onFrameLoaded(e){
         scrollOffset = {x: frameWindow.pageXOffset, y: frameWindow.pageYOffset}
     }, false)
     //console.log(cssLinkTags.map(function(tag){return tag.href}).join("\n"))
+    
     if (!intervalID)
         intervalID = setInterval(refresh, 1000)
 }
@@ -189,6 +192,6 @@ function init(url){
     buildPage()
     frame = document.getElementById('frame')
     frame.addEventListener('load', onFrameLoaded, false)
-    frame.src = mainURL
+    frame.src = addRandom(mainURL)
 }
 
