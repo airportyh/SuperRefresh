@@ -11,9 +11,10 @@ Usage:
 
 How to build it?
 ----------------
-1. Get [yui-compressor] [1] and put it in your PATH.
-2. run the build script
-3. find the output in marklet.js
+1. Install python if you don't have it.
+2. Get [yui-compressor] [1] and put it in your PATH.
+3. run the build script
+4. find the output in marklet.js
 
 Browser Support
 ---------------
