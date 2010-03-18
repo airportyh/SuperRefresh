@@ -15,6 +15,10 @@ How to build it?
 2. run the build script
 3. find the output in marklet.js
 
+Browser Support
+---------------
+As far as I know, it only works on Safari, Chrome and Firefox now.
+
 Credits
 -------
 Sha1 Algorithm from [http://www.movable-type.co.uk/scripts/sha1.html] [2].

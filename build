@@ -1,6 +1,38 @@
-echo 'javascript:(function(){' > marklet.js
-yui-compressor js/sha1.js >> marklet.js
-echo -e "\n" >> marklet.js
-yui-compressor js/super_refresh.js >> marklet.js
-echo 'init(String(window.location));})()' >> marklet.js
-cat marklet.js | pbcopy
+#!/usr/bin/env python
+from urllib import quote
+
+#echo 'javascript:(function(){' > marklet.js
+#yui-compressor js/sha1.js >> marklet.js
+#echo -e "\n" >> marklet.js
+#yui-compressor js/super_refresh.js >> marklet.js
+#echo 'init(String(window.location));})()' >> marklet.js
+#cat marklet.js | pbcopy
+
+def call(cmd, input=None):
+  import os
+  fin,fout = os.popen4(cmd)
+  result = fout.read()
+  return result
+  #import subprocess
+  #p = subprocess.Popen(args)
+  #output = p.stdout.read()
+  #p.close()
+  #return output
+
+def compress(file):
+  return quote(call('yui-compressor %s' % file))
+
+files = [
+  'js/sha1.js',
+  'js/super_refresh.js'
+]
+
+last_line = 'init(String(window.location));'
+
+marklet = ['javascript:(function(){']
+for file in files:
+  marklet.append(compress(file))
+marklet.append(quote(last_line))
+marklet.append('})()')
+marklet = ''.join(marklet)
+print marklet
