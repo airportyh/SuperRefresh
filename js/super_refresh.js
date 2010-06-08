@@ -4,7 +4,7 @@ var lastFetchedTimes = {}
 var contentHashes = {}
 var compareMode = 'Content'
 var scrollOffset
-
+var isChrome = navigator.userAgent.match(/Chrome/) != null
 if (!window.console)
     window.console = {log: function(){}}
 
@@ -39,51 +39,52 @@ function stripQS(url){
 }
 
 function ifModified(url, onModified){
-    //console.log('isModified')
     url = stripQS(url)
     var randUrl = addRandom(url)
-    ajax(randUrl, 'GET', function(){
-        if (this.readyState == 4){
-            //console.log('xhr finished.')
-            if (compareMode == 'LastModified'){
-                var lastModified = new Date(this.getResponseHeader('Last-Modified'))
-                var lastFetched = lastFetchedTimes[url] || frameLoadTime
-                //console.log('lastModified: ' + String(lastModified) + ', ' + lastModified)
-                if (lastModified.getTime() > lastFetched.getTime()){
-                    onModified(addTS(url, lastModified))
-                    lastFetchedTimes[url] = lastModified
-                }
-            }else{
-                var sha1 = sha1Hash(this.responseText)
-                if (contentHashes[url] != sha1){
-                    onModified(randUrl)
-                    contentHashes[url] = sha1
+    try{
+        ajax(randUrl, 'GET', function(){
+            if (this.readyState == 4){
+                if (compareMode == 'LastModified'){
+                    var lastModified = new Date(this.getResponseHeader('Last-Modified'))
+                    var lastFetched = lastFetchedTimes[url] || frameLoadTime
+                    //console.log('lastModified: ' + String(lastModified) + ', ' + lastModified)
+                    if (lastModified.getTime() > lastFetched.getTime()){
+                        onModified(addTS(url, lastModified))
+                        lastFetchedTimes[url] = lastModified
+                    }
+                }else{
+                    var sha1 = sha1Hash(this.responseText)
+                    if (contentHashes[url] != sha1){
+                        onModified(randUrl)
+                        contentHashes[url] = sha1
+                    }
                 }
             }
-        }
-    })
+        })
+    }catch(e){}
 }
 
 function refresh(){
-    console.log('refresh()')
-    ifModified(mainURL, function(url){
-        frame.src = url
-    })
-    //console.log('cssLinkTags: ' + cssLinkTags.length)
-    cssLinkTags.forEach(function(link){
-        var url = link.href
-        ifModified(url, function(url){
-            //console.log('Updated ' + url)
-            link.href = url
+    if (isChrome){
+        frame.src = mainURL
+    }else{
+        ifModified(mainURL, function(url){
+            frame.src = url
         })
-    })
+        cssLinkTags.forEach(function(link){
+            var url = link.href
+            ifModified(url, function(url){
+                link.href = url
+            })
+        })
     
-    scriptTags.forEach(function(script){
-        var url = script.src
-        ifModified(url, function(url){
-            frame.contentDocument.location.reload()
+        scriptTags.forEach(function(script){
+            var url = script.src
+            ifModified(url, function(url){
+                frame.contentDocument.location.reload()
+            })
         })
-    })
+    }
 }
 
 function setFrameHeight(){
@@ -97,35 +98,34 @@ function setTitle(){
 }
 
 function onFrameLoaded(e){
-    console.log('onFrameLoaded')
     mainURL = frame.contentWindow.location.toString()
+
     urlBar.innerHTML = stripQS(mainURL)
     frameLoadTime = new Date()
     setTitle()
     var doc = frame.contentDocument
     var frameWindow = frame.contentWindow
     var frameDocument = frame.contentDocument
-    
+
     scriptTags = toArray(frameDocument.getElementsByTagName('script'))
         .filter(function(tag){
             return Boolean(tag.src)
         });
-    
-    //console.log(scriptTags.map(function(tag){return tag.src }).join("\n"))
+
     cssLinkTags = toArray(frameDocument.getElementsByTagName('link'))
         .filter(function(tag){
             return tag.rel == 'stylesheet'
         })
-    
-    
+
+
     if (scrollOffset)
         frameWindow.scrollTo(scrollOffset.x, scrollOffset.y)
-    
+
     frameWindow.addEventListener('scroll', function(){
         scrollOffset = {x: frameWindow.pageXOffset, y: frameWindow.pageYOffset}
     }, false)
     //console.log(cssLinkTags.map(function(tag){return tag.href}).join("\n"))
-    
+
     if (!intervalID)
         intervalID = setInterval(refresh, 1000)
 }
