@@ -16,7 +16,6 @@ def compress(file):
   return quote(call('yui-compressor %s' % file))
 
 files = [
-  'js/sha1.js',
   'js/super_refresh.js'
 ]
 
