@@ -9,7 +9,7 @@ var mainURL,
     contentHashes = {},
     isLocal = window.location.protocol === 'file:',
     compareMode = isLocal ? 'Content' : 'LastModified',
-    scrollOffset,
+    scrollOffsets = {},
     cantAccessIframe = false
 
 function addTS(url, date){
@@ -116,9 +116,15 @@ function setTitle(){
 
 function onFrameLoaded(e){
     try{
+        var url
         mainURL = frame.contentWindow.location.toString()
-
-        urlBar.innerHTML = stripQS(mainURL)
+        url = stripQS(mainURL)
+        if (history.pushState){
+            console.log('pushing ' + url)
+            history.pushState({url: url}, null, url)
+        }else{
+            urlBar.innerHTML = url
+        }
     
         frameLoadTime = new Date()
         setTitle()
@@ -136,12 +142,13 @@ function onFrameLoaded(e){
                 return tag.rel == 'stylesheet'
             })
 
-
-        if (scrollOffset)
+        if (scrollOffsets[url]){
+            var scrollOffset = scrollOffsets[url]
             frameWindow.scrollTo(scrollOffset.x, scrollOffset.y)
+        }
 
         onEvent(frameWindow, 'scroll', function(){
-            scrollOffset = {x: frameWindow.pageXOffset, y: frameWindow.pageYOffset}
+            scrollOffsets[url] = {x: frameWindow.pageXOffset, y: frameWindow.pageYOffset}
         })
     }catch(e){
         cantAccessIframe = true
@@ -166,11 +173,37 @@ function blankOutPage(){
     document.body.innerHTML = ''
 }
 
-function onEvent(elm, event, callback){
-    if (elm.addEventListener)
-        elm.addEventListener(event, callback, false)
-    else if (elm.attachEvent)
-        elm.attachEvent('on' + event, callback)
+var onEvent = (function () {
+  if (document.addEventListener) {
+    return function (el, type, fn) {
+      if (el && el.nodeName || el === window) {
+        el.addEventListener(type, fn, false);
+      } else if (el && el.length) {
+        for (var i = 0; i < el.length; i++) {
+          onEvent(el[i], type, fn);
+        }
+      }
+    };
+  } else {
+    return function (el, type, fn) {
+      if (el && el.nodeName || el === window) {
+        el.attachEvent('on' + type, function () { return fn.call(el, window.event); });
+      } else if (el && el.length) {
+        for (var i = 0; i < el.length; i++) {
+          onEvent(el[i], type, fn);
+        }
+      }
+    };
+  }
+})();
+
+function onPopState(e){
+    var state = e.state
+        url = state && state.url
+    window.evt = e
+    console.log('pop state with url: ' + JSON.stringify(e.state))
+    if (url)
+        frame.src = addRandom(url)
 }
 
 function buildPage(){
@@ -199,11 +232,13 @@ h1 span{\
 }\
 #urlBar{\
     position: absolute;\
-    right: 5px;\
+    right: 0px;\
     top: 0px;\
-    color: #888;\
-    padding-top: 8px;\
-    font-size: 12px\
+    font-size: 15px;\
+    height: 18px;\
+    padding: 3px;\
+    border: 1px solid #aaa;\
+    background: #ddd;\
 }'
 	var style = document.createElement('style')
 	style.type = 'text/css'
@@ -216,15 +251,19 @@ h1 span{\
 	title.appendChild(document.createTextNode('SuperRefresh'))
 	head.appendChild(title)
 	head.appendChild(style)
-    document.body.innerHTML = '<h1><span>super</span>refresh</h1>\
-<div id="urlBar"></div>\
-<iframe id="frame"></iframe>'
+	var markup = '<h1><span>super</span>refresh</h1>'
+	if (!history.pushState)
+	    markup += '<div id="urlBar"></div>'
+	markup += '<iframe id="frame"></iframe>'
+    document.body.innerHTML = markup
     frame = document.getElementById('frame')
     urlBar = document.getElementById('urlBar')
     setFrameHeight()
     onEvent(window, 'resize', onWindowResize)
 }
 
+if (history.pushState)
+    onEvent(window, 'popstate', onPopState)
 function init(url){
     mainURL = url
     blankOutPage()
