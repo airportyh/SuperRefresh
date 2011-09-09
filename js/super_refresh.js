@@ -10,7 +10,10 @@ var mainURL,
     isLocal = window.location.protocol === 'file:',
     compareMode = isLocal ? 'Content' : 'LastModified',
     scrollOffsets = {},
-    cantAccessIframe = false
+    cantAccessIframe = false,
+    refreshing = [],
+    myHistory = [],
+    usePushState = false
 
 function addTS(url, date){
     return url + '?' + (date.getTime())
@@ -72,11 +75,12 @@ function ifModified(url, onModified){
 
 function refresh(){
     if (cantAccessIframe){
-        frame.src = mainURL
+        refreshing.push(stripQS(mainURL))
+        setURL(mainURL)
         return
     }
     ifModified(mainURL, function(url){
-        frame.src = url
+        setURL(mainURL)
     })
     for (var i = 0, len = cssLinkTags.length; i < len; i++){
         var link = cssLinkTags[i]
@@ -90,10 +94,7 @@ function refresh(){
         var script = scriptTags[i]
         var url = script.src
         ifModified(url, function(url){
-            if (cantAccessIframe)
-                frame.src = mainURL
-            else
-                frame.contentWindow.document.location.reload()
+            setURL(mainURL)
         })
     }
 }
@@ -114,47 +115,67 @@ function setTitle(){
     
 }
 
+function setURL(url){
+    console.log('url: ' + url)
+    myHistory.push(url)
+    refreshing.push(stripQS(url))
+    frame.src = url
+}
+
+function setTopURL(url){
+    console.log('setTopURL: ' + url)
+    if (usePushState){
+        history.pushState({url: url}, null, url)
+    }else{
+        urlBar.innerHTML = url
+    }
+}
+
 function onFrameLoaded(e){
+    var url
+    console.log(JSON.stringify(refreshing))
     try{
-        var url
         mainURL = frame.contentWindow.location.toString()
-        url = stripQS(mainURL)
-        if (history.pushState){
-            console.log('pushing ' + url)
-            history.pushState({url: url}, null, url)
-        }else{
-            urlBar.innerHTML = url
-        }
-    
-        frameLoadTime = new Date()
-        setTitle()
-        var doc = frame.contentDocument
-        var frameWindow = frame.contentWindow
-        var frameDocument = frameWindow.document
-
-        scriptTags = filter(frameDocument.getElementsByTagName('script'),
-            function(tag){
-                return Boolean(tag.src)
-            })
-
-        cssLinkTags = filter(frameDocument.getElementsByTagName('link'),
-            function(tag){
-                return tag.rel == 'stylesheet'
-            })
-
-        if (scrollOffsets[url]){
-            var scrollOffset = scrollOffsets[url]
-            frameWindow.scrollTo(scrollOffset.x, scrollOffset.y)
-        }
-
-        onEvent(frameWindow, 'scroll', function(){
-            scrollOffsets[url] = {x: frameWindow.pageXOffset, y: frameWindow.pageYOffset}
-        })
     }catch(e){
         cantAccessIframe = true
         mainURL = window.location.toString()
-        urlBar.innerHTML = stripQS(mainURL)
+        setTopURL(stripQS(mainURL))
+        return
     }
+    var push = refreshing.indexOf(mainURL) === -1
+    if (push){
+        console.log('User clicked URL ' + mainURL)
+    }else{
+        refreshing.splice(refreshing.indexOf(mainURL), 1)
+    }
+    url = stripQS(mainURL)
+    if (push) setTopURL(url)
+
+    frameLoadTime = new Date()
+    setTitle()
+    var doc = frame.contentDocument
+    var frameWindow = frame.contentWindow
+    var frameDocument = frameWindow.document
+
+    scriptTags = filter(frameDocument.getElementsByTagName('script'),
+        function(tag){
+            return Boolean(tag.src)
+        })
+
+    cssLinkTags = filter(frameDocument.getElementsByTagName('link'),
+        function(tag){
+            return tag.rel == 'stylesheet'
+        })
+
+    if (scrollOffsets[url]){
+        var scrollOffset = scrollOffsets[url]
+        frameWindow.scrollTo(scrollOffset.x, scrollOffset.y)
+    }
+
+    onEvent(frameWindow, 'scroll', function(){
+        scrollOffsets[url] = {x: frameWindow.pageXOffset, y: frameWindow.pageYOffset}
+    })
+
 
     if (!intervalID)
         intervalID = setInterval(refresh, cantAccessIframe ? 3000 : 1000)
@@ -213,7 +234,7 @@ function buildPage(){
 	top: 24px;\
 	width: 100%;\
 	border: none 0px;\
-	border-top: 1px solid #888;\
+	border-top: 1px solid #aaa;\
 }\
 body{\
 	font-family: "Helvetica", "Arial";\
@@ -223,9 +244,8 @@ body{\
 }\
 h1{\
     font-size: 20px;\
-    margin: 0; padding: 0;\
 	color: #8cc21f;\
-	margin-left: 0.2em;\
+	margin: 2px 4px;\
 }\
 h1 span{\
 	color: #4ca1cc;\
@@ -252,7 +272,7 @@ h1 span{\
 	head.appendChild(title)
 	head.appendChild(style)
 	var markup = '<h1><span>super</span>refresh</h1>'
-	if (!history.pushState)
+	if (!usePushState)
 	    markup += '<div id="urlBar"></div>'
 	markup += '<iframe id="frame"></iframe>'
     document.body.innerHTML = markup
@@ -262,7 +282,7 @@ h1 span{\
     onEvent(window, 'resize', onWindowResize)
 }
 
-if (history.pushState)
+if (usePushState)
     onEvent(window, 'popstate', onPopState)
 function init(url){
     mainURL = url
@@ -270,6 +290,6 @@ function init(url){
     buildPage()
     frame = document.getElementById('frame')
     onEvent(frame, 'load', onFrameLoaded)
-    frame.src = addRandom(mainURL)
+    setURL(addRandom(url))
 }
 

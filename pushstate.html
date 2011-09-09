@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+<title>Test Push State</title>
+</head>
+<body>
+<h1>Test Push State</h1>
+<a id="a" href="#">Go to a</a>
+<a id="b" href="#">Go to b</a>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+<script>
+
+var onEvent = (function () {
+  if (document.addEventListener) {
+    return function (el, type, fn) {
+      if (el && el.nodeName || el === window) {
+        el.addEventListener(type, fn, false);
+      } else if (el && el.length) {
+        for (var i = 0; i < el.length; i++) {
+          onEvent(el[i], type, fn);
+        }
+      }
+    };
+  } else {
+    return function (el, type, fn) {
+      if (el && el.nodeName || el === window) {
+        el.attachEvent('on' + type, function () { return fn.call(el, window.event); });
+      } else if (el && el.length) {
+        for (var i = 0; i < el.length; i++) {
+          onEvent(el[i], type, fn);
+        }
+      }
+    };
+  }
+})();
+
+
+onEvent(window, 'popstate', function(e){
+	console.log(JSON.stringify(e.state))
+})
+
+$(function(){
+	$('#a').click(function(e){
+		console.log('a clicked')
+		history.pushState({url: '/a'}, null, '/a')
+		e.preventDefault()
+		return false
+	})
+	$('#b').click(function(e){
+		e.preventDefault()
+		history.pushState({url: '/b'}, null, '/b')
+		return false
+	})
+})
+
+</script>
+</body>
+</html>
